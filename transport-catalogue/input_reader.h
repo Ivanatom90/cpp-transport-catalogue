@@ -16,7 +16,6 @@ struct  Request
 
 class RequestBase{
 public:
-//    RequestBase(std::pair<std::vector<Request>, std::vector<Request>>);
     std::vector<Request> requests_stops; //точки остановки
     std::vector<Request> bus_stops; //маршруты автобусов
 
