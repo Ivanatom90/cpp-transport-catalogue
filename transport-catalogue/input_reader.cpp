@@ -1,9 +1,6 @@
 
 #include "input_reader.h"
 
-
-//RequestBase::RequestBase(std::pair<std::vector<Request>, std::vector<Request>> p): requests_stop(p.first), requests_bus(p.second){}
-
 Request ReadInput(std::string& str){
     int pos = str.find_first_of(' ');
     Request req;
