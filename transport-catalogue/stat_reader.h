@@ -35,7 +35,6 @@ class RequestOut{
         TransportCatalog Catalog_;
         std::vector<std::string> bus_name_requests;
         std::vector<Output> output_;
-        //std::vector<OutputBus> output_bus_in_stop;
         std::vector<Request> req_out_;
 
 };
