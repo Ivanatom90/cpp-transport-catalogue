@@ -34,10 +34,10 @@ struct BusRoute{
 };
 
 struct StopDist{
-  StopDist() = default;
-  std::string stop1 = "";
-  std::string stop2 = "";
-  int dist = 0;
+      StopDist() = default;
+      std::string stop1 = "";
+      std::string stop2 = "";
+      int dist = 0;
 };
 
 
@@ -60,9 +60,9 @@ class TransportCatalog{
             size_t operator()(const std::pair<std::string, std::string>&) const;
         };
     private:
-    void AddStop(std::string, Coordinates);
-    void AddRb(RequestBase&);
-    void AddBusRoute();
+        void AddStop(std::string, Coordinates);
+        void AddRb(RequestBase&);
+        void AddBusRoute();
 
 
 
