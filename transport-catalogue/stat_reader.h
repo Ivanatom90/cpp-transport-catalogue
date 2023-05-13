@@ -7,7 +7,7 @@
 #include <istream>
 #include <map>
 
-#include "transport_catalogue.h"
+#include "input_reader.h"
 
 struct Output{
       Output() = default;
@@ -23,13 +23,15 @@ struct Output{
 
 class RequestOut{
     public:
-        RequestOut(TransportCatalog, std::istream&);
+        RequestOut(TransportCatalog&, std::istream&);
 
+
+        void GetOutPutBus(const Request& req, std::ostream& out);
+        void GetOutPutStop(const Request& req, std::ostream& out);
         void GetOutPut();
-//        void OutPutBus();
         void OutPutStop();
         void GetReqOut(std::istream&);
-        void Out(Output&);
+        void Out(Output& out);
 
 
     private:
@@ -39,9 +41,3 @@ class RequestOut{
         std::vector<Request> req_out_;
 
 };
-
-
-
-
-// напишите решение с нуля
-// код сохраните в свой git-репозиторий
