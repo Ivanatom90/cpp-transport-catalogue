@@ -4,56 +4,58 @@
 #include <ostream>
 #include <set>
 
-    RequestOut::RequestOut(TransportCatalog TC, std::istream& in): Catalog_(TC){
+    RequestOut::RequestOut(TransportCatalog& TC, std::istream& in): Catalog_(TC){
         GetReqOut(in);
-        GetOutPut();
+
+    }
+
+    void RequestOut::GetOutPutBus(const Request& req, std::ostream& out){
+        Output output;
+        BusRoute* bus_route = Catalog_.GetBusRoude(req.request);
+        if(bus_route == nullptr){
+            output.bus_nember =  req.request;
+            output.found =false;
+            bus_route  = nullptr;
+            out<<"Bus "<<output.bus_nember<<": not found"<<std::endl;
+        } else{
+            output.bus_nember = req.request;
+            output.bus_stop_number_in_route = bus_route->route_number;
+            output.route_lengh =  bus_route->distance;
+            output.unique_bus_stop_number = bus_route->unique_route_number;
+            output.curvature = bus_route->curvature;
+            output.found =true;
+            bus_route = nullptr;
+            Out(output);
+        }
+    }
+    void RequestOut::GetOutPutStop(const Request& req, std::ostream& out){
+        BusStop* bus_stop = Catalog_.GetBusStop(req.request);
+        if(bus_stop != nullptr && (bus_stop->buses_numbers.size())){
+            out<<"Stop "<<req.request<<": buses";
+            for (const std::string num:bus_stop->buses_numbers){
+               out<<" "<<num;
+            }
+            out<<std::endl;
+            bus_stop = nullptr;
+        } else if(bus_stop != nullptr){
+                  out<<"Stop "<<req.request<<": no buses"<<std::endl;
+                  bus_stop = nullptr;
+               }
+           else
+        {
+            out<<"Stop "<<req.request<<": not found"<<std::endl;
+             bus_stop = nullptr;
+        }
     }
 
     void RequestOut::GetOutPut(){
-        for(Request& req:req_out_){
+        for(const Request& req:req_out_){
              if(req.type == "Bus"){
-                    Output output;
-                    BusRoute* br = Catalog_.FindBus(req.request);
-                    bool not_empty = br->not_empty;
-                    if(!not_empty){
-                        output.bus_nember =  req.request;
-                        output.found =false;
-                        delete br;
-                         std::cout<<"Bus "<<output.bus_nember<<": not found"<<std::endl;
-                    } else{
-                        output.bus_nember = req.request;
-                        output.bus_stop_number_in_route = Catalog_.FindBus(req.request)->route_number;;
-                        output.route_lengh =  Catalog_.FindBus(req.request)->distance;
-                        output.unique_bus_stop_number = Catalog_.FindBus(req.request)->unique_route_number;
-                        output.curvature = Catalog_.FindBus(req.request)->curvature;
-                        output.found =true;
-                        br = nullptr;
-                        Out(output);
-                    }
-
-
-            } else {
-                 BusStop* bs = Catalog_.FindStop(req.request);
-                 bool not_empty = bs->not_empty;
-                 if(not_empty && (bs->buses_numbers.size())){
-                     std::cout<<"Stop "<<req.request<<": buses";
-                     for (const std::string num:bs->buses_numbers){
-                         std::cout<<" "<<num;
-                     }
-                     std::cout<<std::endl;
-                     bs = nullptr;
-                 } else if(not_empty){
-                           std::cout<<"Stop "<<req.request<<": no buses"<<std::endl;
-                           bs = nullptr;
-                        }
-                    else
-                 {
-                     std::cout<<"Stop "<<req.request<<": not found"<<std::endl;
-                     delete bs;
-                 }
+                    GetOutPutBus(req, std::cout);
+                } else {
+                    GetOutPutStop(req, std::cout);
              }
         }
-
     }
 
     void RequestOut::Out(Output& output){
@@ -62,16 +64,7 @@
                <<" route length, "<<output.curvature<<" curvature"<<std::endl;
     }
 
-/*
-void RequestOut::OutPutBus(){
-    for(Output op:output_){
-        (op.found)
-           ? std::cout<<"Bus "<<op.bus_nember<<": "<<op.bus_stop_number_in_route<<" stops on route, "<<op.unique_bus_stop_number
-                     <<" unique stops, "<<op.route_lengh<<" route length"<<std::endl
-           : std::cout<<"Bus "<<op.bus_nember<<": not found"<<std::endl;
-    }
-}
-*/
+
 void RequestOut::GetReqOut(std::istream& input){
     std::string s, word;
     std::vector<std::string> result;
@@ -94,6 +87,3 @@ void RequestOut::GetReqOut(std::istream& input){
     }
 
 }
-
-// напишите решение с нуля
-// код сохраните в свой git-репозиторий
