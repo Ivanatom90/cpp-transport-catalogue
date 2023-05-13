@@ -9,7 +9,7 @@ size_t TransportCatalog::Hash::operator()(const std::pair<std::string, std::stri
     return static_cast<size_t>(s1*3 + s2*37);
 }
 
-void TransportCatalog::AddStop(std::string stop_name, Coordinates cord){
+void TransportCatalog::AddStop(const std::string& stop_name, Coordinates cord){
     BusStop bs;
     bs.stop_name = stop_name;
     bs.stop_cord = cord;
@@ -111,9 +111,9 @@ void TransportCatalog::AddRb(RequestBase& rb){
                 if(trigger){
                     //sd.stop2 = station;
                     stops_dist.second = station;
-                    br.distanse += distanse_stop_[stops_dist];
+                    br.distance += distanse_stop_[stops_dist];
                     cor_now = br.route.back()->stop_cord;
-                    br.distanse_geo += ComputeDistance(cor_last,  cor_now);
+                    br.distance_geo += ComputeDistance(cor_last,  cor_now);
                 }
                 cor_last = br.route.back()->stop_cord;
                 str.erase(0, pos);
@@ -139,9 +139,9 @@ void TransportCatalog::AddRb(RequestBase& rb){
                 if(trigger){
                    // sd.stop2 = station;
                     stops_dist.second = station;
-                    br.distanse += distanse_stop_[stops_dist];
+                    br.distance += distanse_stop_[stops_dist];
                     cor_now = br.route.back()->stop_cord;
-                    br.distanse_geo += ComputeDistance(cor_last,  cor_now);
+                    br.distance_geo += ComputeDistance(cor_last,  cor_now);
                 }
                 cor_last = br.route.back()->stop_cord;
                 str.erase(0, pos);
@@ -150,14 +150,14 @@ void TransportCatalog::AddRb(RequestBase& rb){
                 stops_dist.first = station;
             }
 
-            br.distanse_geo *= 2;
+            br.distance_geo *= 2;
             int  u = br.route.size()-2;
             for (int i = u; i >= 0; i--){
                 stops_dist.first = br.route.back()->stop_name;
               //  cor_last = br.route.back()->stop_cord;
                 br.route.push_back(br.route[i]);
                 stops_dist.second = br.route.back()->stop_name;                cor_now = br.route.back()->stop_cord;
-                br.distanse += distanse_stop_[stops_dist];
+                br.distance += distanse_stop_[stops_dist];
               //  cor_now = br.route.back()->stop_cord;
                // br.distanse_geo += ComputeDistance(cor_last,  cor_now);
             }
@@ -170,9 +170,9 @@ void TransportCatalog::AddRb(RequestBase& rb){
         for (BusStop* stop:mark){
             unic.insert(stop->stop_name);
         }
-        br.unic_route_number = unic.size();
+        br.unique_route_number = unic.size();
         br.not_empty = true;
-        br.izvil = br.distanse/br.distanse_geo;
+        br.curvature = br.distance/br.distance_geo;
         buses_routes_.push_back(br);
         routes_[br.bus_number] = &buses_routes_.back();
 
@@ -184,7 +184,7 @@ void TransportCatalog::AddBusRoute(){
 
 }
 
-BusStop* TransportCatalog::FindStop(std::string bus_stop){
+BusStop* TransportCatalog::FindStop(const std::string& bus_stop){
     if (!stops_.count(bus_stop)){
         BusStop* bs = new BusStop;
         bs->not_empty = false;
@@ -192,7 +192,7 @@ BusStop* TransportCatalog::FindStop(std::string bus_stop){
     }
     return stops_[bus_stop];
 }
-BusRoute* TransportCatalog::FindBus(std::string number) const {
+BusRoute* TransportCatalog::FindBus(const std::string& number) const {
     if (!routes_.count(number)){
         BusRoute* br = new BusRoute;
         br->not_empty = false;
