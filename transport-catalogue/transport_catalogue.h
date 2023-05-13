@@ -25,19 +25,19 @@ struct BusRoute{
       std::string bus_number = "";
       bool type_circle = false;
       std::vector<BusStop*> route;
-      double distanse =0;
-      double distanse_geo = 0;
-      double izvil = 0;
+      double distance =0;
+      double distance_geo = 0;
+      double curvature = 0;
       int route_number =0;
-      int unic_route_number =0;
+      int unique_route_number =0;
       bool not_empty = false;
 };
 
 struct StopDist{
-      StopDist() = default;
-      std::string stop1 = "";
-      std::string stop2 = "";
-      int dist = 0;
+  StopDist() = default;
+  std::string stop1 = "";
+  std::string stop2 = "";
+  int dist = 0;
 };
 
 
@@ -45,12 +45,12 @@ struct StopDist{
 class TransportCatalog{
     public:
         TransportCatalog() = default;
-        TransportCatalog(RequestBase rb):requvests_(rb){
+        TransportCatalog(RequestBase& rb):requvests_(rb){
             AddRb(rb);
         }
 
-        BusStop* FindStop(std::string);
-        BusRoute* FindBus  (std::string) const;
+        BusStop* FindStop(const std::string&);
+        BusRoute* FindBus  (const std::string&) const;
 
         void GetBusInfo(int);
 
@@ -60,7 +60,7 @@ class TransportCatalog{
             size_t operator()(const std::pair<std::string, std::string>&) const;
         };
     private:
-        void AddStop(std::string, Coordinates);
+        void AddStop(const std::string&, Coordinates);
         void AddRb(RequestBase&);
         void AddBusRoute();
 
