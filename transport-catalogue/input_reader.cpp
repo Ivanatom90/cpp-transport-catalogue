@@ -1,6 +1,8 @@
 
 #include "input_reader.h"
 
+
+
 Request ReadInput(std::string& str){
     int pos = str.find_first_of(' ');
     Request req;
