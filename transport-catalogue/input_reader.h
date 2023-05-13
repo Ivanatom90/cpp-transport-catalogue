@@ -19,6 +19,8 @@ public:
     std::vector<Request> requests_stops; //точки остановки
     std::vector<Request> bus_stops; //маршруты автобусов
 
+
+
     std::vector<Request>* GetStops();
     std::vector<Request>* GetBusStops();
     private:
