@@ -6,6 +6,11 @@
 #include <sstream>
 #include <istream>
 #include <map>
+#include <set>
+
+#include "transport_catalogue.h"
+#include "geo.h"
+
 
 struct  Request
 {
@@ -16,16 +21,22 @@ struct  Request
 
 class RequestBase{
 public:
-    std::vector<Request> requests_stops; //точки остановки
-    std::vector<Request> bus_stops; //маршруты автобусов
+
+    RequestBase(std::istream& input){
+        GetRequestBase(input);
+        CreateTCatalog();
+    }
 
 
-
-    std::vector<Request>* GetStops();
-    std::vector<Request>* GetBusStops();
+    TransportCatalog TCatalog_;
     private:
+
+    std::vector<Request> requests_stops; //точки остановки
+    std::vector<Request> requests_bus; //маршруты автобусов
+    void CreateTCatalog();
+    void GetRequestBase(std::istream& input);
 };
 
 Request ReadInput(std::string& str);
 int RequestNumber(std::string& str);
-RequestBase GetRequestBase(std::istream& input);
+
