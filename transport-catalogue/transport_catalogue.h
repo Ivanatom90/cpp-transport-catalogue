@@ -2,64 +2,83 @@
 #include <deque>
 #include <string>
 #include <vector>
-#include <unordered_map>
 #include <algorithm>
-#include <string_view>
-#include <algorithm>
-#include <set>
+#include <iomanip>
+#include <iostream>
+#include <numeric>
 #include <unordered_set>
+#include <unordered_map>
 
 #include "geo.h"
 
-struct StopDist{
-  StopDist() = default;
-  std::string stop1 = "";
-  std::string stop2 = "";
-  int dist = 0;
+namespace transport_catalogue {
+
+struct Bus;
+
+struct Stop {
+    std::string name;
+    double latitude;
+    double longitude;
+    std::vector<Bus*> buses;
 };
 
-struct BusStop{
-    BusStop() = default;
-    std::string stop_name;
-    Coordinates stop_cord;
-    std::set<std::string> buses_numbers;
-    bool not_empty = false;
+struct Bus {
+    std::string name;
+    std::vector<Stop*> stops;
+    std::vector<Stop*> stops_not_all;
+    bool is_roundtrip;
+    size_t route_length;
 };
 
-struct BusRoute{
-      BusRoute() = default;
-      std::string bus_number = "";
-      bool type_circle = false;
-      std::vector<BusStop*> route;
-      double distance =0;
-      double distance_geo = 0;
-      double curvature = 0;
-      int route_number =0;
-      int unique_route_number =0;
-      bool not_empty = false;
+struct Distance {
+    const Stop* A;
+    const Stop* B;
+    int distance;
 };
 
-class TransportCatalog{
-    public:
-      void AddStop(BusStop& bs);
-      void AddBusRoute(BusRoute& br);
-      void AddDistBetweenStops(std::pair<std::string, std::string>& stop1_stop2, int dist);
-      void AddBusNumberToStop(std::string& stop_name, std::string& bus_number);
-      BusStop* GetBusStop(const std::string& stop) const;
-      BusRoute* GetBusRoude(const std::string& bus) const;
-      int GetDistaseBetweenStops(std::pair<std::string, std::string>& stops) const;
+struct DistanceHasher {
+    std::hash<const void*> hasher;
 
-        class Hash{
-
-          public:
-            size_t operator()(const std::pair<std::string, std::string>&) const;
-        };
-
-    private:
-      std::deque<BusStop> stops_base_;
-      std::deque<BusRoute> buses_routes_;
-      std::unordered_map<std::pair<std::string, std::string>, int, Hash> distanse_stop_;
-      std::unordered_map<std::string, BusStop*> stops_;
-      std::unordered_map<std::string, BusRoute*> routes_;
+    std::size_t operator()(const std::pair<const Stop*, const Stop*> pair_stops) const noexcept {
+        auto hash_1 = static_cast<const void*>(pair_stops.first);
+        auto hash_2 = static_cast<const void*>(pair_stops.second);
+        return hasher(hash_1) * 17 + hasher(hash_2);
+    }
 };
 
+typedef  std::unordered_map<std::string_view, Stop*> StopMap;
+typedef  std::unordered_map<std::string_view, Bus*> BusMap;
+typedef  std::unordered_map<std::pair<const Stop*, const  Stop*>, int, DistanceHasher> DistanceMap;
+
+class TransportCatalogue {
+public:
+    void add_bus(Bus&& bus);
+    void add_stop(Stop&& stop);
+    void add_distance(const std::vector<Distance>& distances);
+
+    Bus* get_bus(std::string_view bus_name);
+    Stop* get_stop(std::string_view stop_name);
+    BusMap get_busname_to_bus() const;
+
+    std::unordered_set<const Bus*> stop_get_uniq_buses(Stop* stop);
+    std::unordered_set<const Stop*> get_uniq_stops(Bus* bus);
+    double get_length(Bus* bus);
+
+    size_t get_distance_stop(const Stop* start, const Stop* finish);
+    size_t get_distance_to_bus(Bus* bus);
+
+   const std::deque<Stop>& Get_stops() const;
+   const std::deque<Bus>& Get_Buses() const;
+
+private:
+    std::deque<Stop> stops;
+    StopMap stopname_to_stop;
+
+    std::deque<Bus> buses;
+    BusMap busname_to_bus;
+
+    DistanceMap distance_to_stop;
+
+};
+
+}//end namespace transport_catalogue
