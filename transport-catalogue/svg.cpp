@@ -6,11 +6,39 @@ using namespace std::literals;
 
 void Object::Render(const RenderContext& context) const {
     context.RenderIndent();
+    // Делегируем вывод тега своим подклассам
     RenderObject(context);
     context.out << std::endl;
 }
 
 //-------------Color-------------------------------
+
+/*
+void ColorPrinter::operator()( Rgb& rgb) const{
+    out << "rgb("sv << static_cast<short>(rgb.red_) << ","sv
+                    << static_cast<short>(rgb.green_) << ","sv
+                    << static_cast<short>(rgb.blue_) << ")"sv;
+}
+void ColorPrinter::operator()(Rgba& rgba) const{
+    out << "rgba("sv << static_cast<short>(rgba.red_) << ","sv
+                     << static_cast<short>(rgba.green_) << ","sv
+                     << static_cast<short>(rgba.blue_) << ","sv
+                     << (rgba.opacity_) << ")"sv;
+}
+void ColorPrinter::operator()(std::monostate) const{
+    out << "none"sv;
+}
+void ColorPrinter::operator()( std::string& color) const{
+    out << color;
+}
+
+std::ostream& operator<<(std::ostream& out, const Color& color){
+    const auto col = color;
+    std::visit(ColorPrinter{out}, col);
+    return out;
+}
+*/
+
 
 inline void PrintColor(std::ostream& out, Rgba& rgba){
     //out<<"rgba("<<rgba.red_<<","<<rgba.green_<<","<<rgba.blue_<<","<<rgba.opacity_<<")";
@@ -40,6 +68,7 @@ std::ostream& operator<<(std::ostream& out, const Color& color){
     return out;
 }
 
+
 // ---------- Circle ------------------
 
 Circle& Circle::SetCenter(Point center)  {
@@ -60,7 +89,12 @@ void Circle::RenderObject(const RenderContext& context) const {
     out << " />"sv;
 }
 
-//--------------------Polyline---------------------------------------
+/* --------------------Polyline---------------------------------------
+ *
+ * Класс Polyline моделирует элемент <polyline> для отображения ломаных линий
+ * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/polyline
+ */
+
 
 Polyline& Polyline::AddPoint(Point point){
     points_.emplace_back(point);
@@ -82,31 +116,37 @@ void Polyline::RenderObject(const RenderContext& context) const {
 
 }
 
+// Задаёт координаты опорной точки (атрибуты x и y)
 Text& Text::SetPosition(Point pos){
     xy_ = pos;
     return *this;
 }
 
+// Задаёт смещение относительно опорной точки (атрибуты dx, dy)
 Text& Text::SetOffset(Point offset){
     dxdy_= offset;
     return *this;
 }
 
+// Задаёт размеры шрифта (атрибут font-size)
 Text& Text::SetFontSize(uint32_t size){
     font_size_ = size;
     return *this;
 }
 
+// Задаёт название шрифта (атрибут font-family)
 Text& Text::SetFontFamily(std::string font_family){
     font_family_ = font_family;
     return *this;
 }
 
+// Задаёт толщину шрифта (атрибут font-weight)
 Text& Text::SetFontWeight(std::string font_weight){
     font_weight_ = font_weight;
     return *this;
 }
 
+// Задаёт текстовое содержимое объекта (отображается внутри тега text)
 Text& Text::SetData(std::string data){
     data_ = data;
     int i = 0;
@@ -153,6 +193,9 @@ void Text::RenderObject(const RenderContext& context)  const  {
     if(font_weight_ != ""){
         out << " font-weight=\"" << font_weight_ << "\"";
     }
+
+
+
     out<<">";
     out<< data_svg_ << "</text>";
     }
@@ -169,4 +212,15 @@ void Document::Render(std::ostream& out) const{
     }
     out<<"</svg>"<<std::endl;
 }
+/*
+std::ostream& RgbOut(std::ostream& os, Color col){
+
+    std::string_view sv = col;
+        while(true){
+           int pos sv
+        }
+
+    return os;
+}
+*/
 }  // namespace svg
