@@ -5,385 +5,359 @@ namespace transport_catalogue {
 namespace detail {
 namespace json {
 
-Stop parse_node_stop(Node& node) {
-    Stop stop;
-    Dict stop_node;
+JSONr::JSONr(Document& doc, std::ostream& ou): document_(doc), out(ou) {}
 
-    if (node.is_map()) {
-        stop_node = node.as_map();
-        stop.name = stop_node.at("name").as_string();
-        stop.latitude = stop_node.at("latitude").as_double();
-        stop.longitude = stop_node.at("longitude").as_double();
+void JSONr::ParseReq(){
+    Dict main_node;
+    if (document_.get_root().is_map()){
+        main_node = document_.get_root().as_map();
+            JSONr::ParseBasReq(main_node.at("base_requests"));
+            JSONr::ParseRenderSettings(main_node.at("render_settings"));
+            JSONr::ParseStatReq(main_node.at("stat_requests"));
     }
-
-    return stop;
 }
 
-std::vector<Distance> parse_node_distances(Node& node, TransportCatalogue& catalogue) {
-    std::vector<Distance> distances;
-    Dict stop_node;
-    Dict stop_road_map;
-    std::string begin_name;
-    std::string last_name;
-    int distance;
+void JSONr::ParseBasReq(const Node& BasicRegNode){
 
-    if (node.is_map()) {
-        stop_node = node.as_map();
-        begin_name = stop_node.at("name").as_string();
+    std::vector<Node> buses_nodes;
+    std::vector<Node> stops_nodes;
 
-        try {
-            stop_road_map = stop_node.at("road_distances").as_map();
-
-            for (auto [key, value] : stop_road_map) {
-                last_name = key;
-                distance = value.as_int();
-                distances.push_back({catalogue.get_stop(begin_name),
-                                     catalogue.get_stop(last_name), distance});
+    if (BasicRegNode.is_array()){
+            const Array& node_base = BasicRegNode.as_array();
+            for(const Node& node:node_base){
+                if(node.is_map()){
+                    const Dict&  reg_node = node.as_map();
+                    if(reg_node.at("type").as_string() == "Bus"){
+                        buses_nodes.push_back(node);
+                    } else if(reg_node.at("type").as_string() == "Stop"){
+                        stops_nodes.push_back(node);
+                    } else {
+                        throw "parse node don't have value";
+                    }
+                }
             }
-
-        } catch(...) {
-          //  std::cout << "invalide road" << std::endl;
-        }
     }
 
-    return distances;
+    for(const Node& bus:buses_nodes){
+        CreateBusJ(bus);
+    }
+
+    for(const Node& stop:stops_nodes){
+        CreateStopJ(stop);
+    }
+
 }
 
-Bus parse_node_bus(Node& node, TransportCatalogue& catalogue) {
-    Bus bus;
+
+void JSONr::CreateBusJ(const Node& bus){
+    Bus_J bus_js;
     Dict bus_node;
-    Array bus_stops;
 
-    if (node.is_map()) {
-        bus_node = node.as_map();
-        bus.name = bus_node.at("name").as_string();
-        bus.is_roundtrip = bus_node.at("is_roundtrip").as_bool();
+    if(bus.is_map()){
+        bus_node = bus.as_map();
+        bus_js.name = bus_node.at("name").as_string();
+        for(const Node& n:bus_node.at("stops").as_array()){
+            bus_js.route.push_back(n.as_string());
+        }
+        bus_js.is_roudtrip = bus_node.at("is_roundtrip").as_bool();
+    } else {
+        throw "not create BusJ";
+    }
+    buses_j_.push_back(bus_js);
 
-        try {
-            bus_stops = bus_node.at("stops").as_array();
+}
 
-            for (Node stop : bus_stops) {
-                bus.stops.push_back(catalogue.get_stop(stop.as_string()));
+void JSONr::CreateStopJ(const Node& stop){
+    Stop_J stop_js;
+    Dict stop_node;
+    if(stop.is_map()){
+        stop_node = stop.as_map();
+        stop_js.name = stop_node.at("name").as_string();
+        stop_js.latitude = stop_node.at("latitude").as_double();
+        stop_js.longitude = stop_node.at("longitude").as_double();
+        for(const auto& dist:stop_node.at("road_distances").as_map()  ){
+
+                std::string key = dist.first;
+                stop_js.dist_to[dist.first] = dist.second.as_int();
+
+        }
+    stops_j_.push_back(stop_js);
+    } else {
+        throw "not stop reqvest";
+    }
+}
+
+void JSONr::ParseStatReq(const Node& BasicRegnode){
+    StatRequest sr;
+    if(BasicRegnode.is_array()){
+       for(const Node& node:BasicRegnode.as_array()){
+           try{
+               const Dict& dict = node.as_map();
+               if(dict.at("type").as_string() != "Map"){
+                   sr.id = dict.at("id").as_int();
+                   sr.name = dict.at("name").as_string();
+                   sr.type = dict.at("type").as_string();
+               } else {
+                   sr.id = dict.at("id").as_int();
+                   sr.type = dict.at("type").as_string();
+               }
+
+               stat_reqs_.push_back(sr);
+           } catch(...){
+
+           }
+        }
+    } else {
+       throw "ParseStatReq error";
+    }
+
+}
+
+
+svg::Color JSONr::DetermineColor(const Node& color){
+    if(color.is_array()){
+        if(color.as_array().size() == 4){
+            const Array& rgba = color.as_array();
+            return svg::Rgba(rgba[0].as_int(), rgba[1].as_int(),rgba[2].as_int(), rgba[3].as_double());
+        } else if(color.as_array().size() == 3){
+            const Array& rgb = color.as_array();
+            return svg::Rgb(rgb[0].as_int(), rgb[1].as_int(),rgb[2].as_int());
+        }
+    }
+        return color.as_string();
+
+}
+
+void JSONr::ParseRenderSettings(const Node& BasicRegnode){
+    RenderSettings& rs = render_settings_;
+    if(BasicRegnode.is_map()){
+            const Dict& dict = BasicRegnode.as_map();
+            rs.width = dict.at("width").as_double();
+            rs.height = dict.at("height").as_double();
+            rs.padding = dict.at("padding").as_double();
+            rs.stop_radius = dict.at("stop_radius").as_double();
+            rs.line_width = dict.at("line_width").as_double();
+            rs.bus_label_font_size = dict.at("bus_label_font_size").as_int();
+            rs.bus_label_offset = {dict.at("bus_label_offset").as_array()[0].as_double(),dict.at("bus_label_offset").as_array()[1].as_double()} ;
+            rs.stop_label_offset = {dict.at("stop_label_offset").as_array()[0].as_double(),dict.at("stop_label_offset").as_array()[1].as_double()};
+            rs.underlayer_width = dict.at("underlayer_width").as_double();
+            rs.underlayer_color = DetermineColor(dict.at("underlayer_color"));
+            rs.stop_label_font_size = dict.at("stop_label_font_size").as_int();
+            const Array& palette = dict.at("color_palette").as_array();
+            for(const Node& p : palette){
+                rs.color_palette.push_back(DetermineColor(p));
             }
-            bus.stops_not_all = bus.stops;
-            if (!bus.is_roundtrip) {
-                size_t size = bus.stops.size() - 1;
 
-                for (size_t i = size; i > 0; i--) {
-                    bus.stops.push_back(bus.stops[i-1]);
-                }
+    }
+}
 
-            }
+void JSONr::CreateTransportCataloge(){
 
-        } catch(...) {
-          //  std::cout << "base_requests: bus: stops is empty" << std::endl;
+    for(const Stop_J& stop : stops_j_){
+        BusStop bs;
+        bs.stop_name = stop.name;
+        bs.stop_cord = geo::Coordinates {stop.latitude, stop.longitude};
+        transport_catalogue_.AddStop(bs);
+        for(const std::pair<std::string, int> dist : stop.dist_to){
+            transport_catalogue_.AddDistBetweenStops(stop.name, dist.first, dist.second);
         }
     }
 
-    return bus;
+    for(const Bus_J& bus: buses_j_){
+        BusRoute br;
+        br.bus_number = bus.name;
+        br.is_roundtrip = bus.is_roudtrip;
+        for(const std::string& stop :bus.route){
+            br.route.push_back(transport_catalogue_.GetBusStop(stop));
+
+        }
+        transport_catalogue_.AddBusRoute(br);
+
+    }
 }
 
-void parse_node_base(const Node& root, TransportCatalogue& catalogue){
-    Array base_requests;
-    Dict req_map;
-    Node req_node;
+void JSONr::CreateAnswer(){
 
-    std::vector<Node> buses;
-    std::vector<Node> stops;
+    for(const StatRequest& sr:stat_reqs_){
+        Answer answer;
 
-    if (root.is_array()) {
-        base_requests = root.as_array();
+        if(sr.type == "Bus"){
 
-        for (Node& node : base_requests) {
-            if (node.is_map()) {
-                req_map = node.as_map();
-
-                try {
-                    req_node = req_map.at("type");
-
-                    if (req_node.is_string()) {
-
-                        if (req_node.as_string() == "Bus") {
-                            buses.push_back(req_map);
-                        } else if (req_node.as_string() == "Stop") {
-                            stops.push_back(req_map);
-                        } else {
-                           // std::cout << "base_requests are invalid";
-                        }
+             if(transport_catalogue_.BusRoudeExist(sr.name)){
+                const BusRoute* br =transport_catalogue_.GetBusRoude(sr.name);
+                answer["curvature"] = br->curvature;
+                answer["request_id"] = sr.id;
+                answer["route_length"] = int(br->distance);
+                answer["unique_stop_count"] = br->unique_route_number;
+                (br->is_roundtrip)
+                    ? answer["stop_count"] = int(br->route.size())
+                    : answer["stop_count"] = (int(br->route.size())*2)-1;
+             } else {
+                 answer["request_id"] = sr.id;
+                 answer["error_message"] = "not found";
+             }
+        } else if(sr.type == "Stop"){
+            answer["request_id"] = sr.id;
+            if(transport_catalogue_.BusStopExist(sr.name)){
+                std::vector<std::string> buses;
+                const BusStop* bs = transport_catalogue_.GetBusStop(sr.name);
+                for(const std::string& bus_number:bs->buses_numbers){
+                    buses.push_back(bus_number);
+                }
+                answer["buses"]=buses;
+            } else {
+                answer["error_message"] = "not found";
+            }
+        } else if(sr.type == "Map"){
+                answer["request_id"] =sr.id;
+                std::string str = "";
+                for(const char ch:mapa_){
+                    if(ch == '"' || ch == '\\'){
+                        str += '\\';
                     }
-
-                } catch(...) {
-                  //  std::cout << "base_requests does not have type value";
+                    str +=ch;
                 }
-            }
+                answer["map"] = str;
+        }
+        else {
+            throw "no answer";
         }
 
-        for (auto stop : stops) {
-            catalogue.add_stop(parse_node_stop(stop));
-        }
-
-        for (auto stop : stops) {
-            catalogue.add_distance(parse_node_distances(stop, catalogue));
-        }
-
-        for (auto bus : buses) {
-            catalogue.add_bus(parse_node_bus(bus, catalogue));
-        }
-
-    } else {
-      //  std::cout << "base_requests is not an array";
-    }
-}
-
-void parce_node_stat(const Node& node, std::vector<StatRequest>& stat_request){
-    Array stat_requests;
-    Dict req_map;
-    StatRequest req;
-
-    if (node.is_array()) {
-        stat_requests = node.as_array();
-
-        for (Node req_node : stat_requests) {
-
-            if (req_node.is_map()) {
-                req_map = req_node.as_map();
-                req.id = req_map.at("id").as_int();
-                req.type = req_map.at("type").as_string();
-                if(req.type != "Map") {req.name = req_map.at("name").as_string();}
-                stat_request.push_back(req);
-            }
-
-        }
-    } else {
-        std::cout << "base_requests is not array";
-    }
-}
-
-void parce_node_render(const Node& node, map_renderer::RenderSettings& rend_set){
-    Dict rend_map;
-    Array bus_lab_offset;
-    Array stop_lab_offset;
-    Array arr_color;
-    Array arr_palette;
-    uint8_t red_;
-    uint8_t green_;
-    uint8_t blue_;
-    double opacity_;
-
-    if (node.is_map()) {
-        rend_map = node.as_map();
-
-        try {
-            rend_set.width_ = rend_map.at("width").as_double();
-            rend_set.height_ = rend_map.at("height").as_double();
-            rend_set.padding_ = rend_map.at("padding").as_double();
-            rend_set.line_width_ = rend_map.at("line_width").as_double();
-            rend_set.stop_radius_ = rend_map.at("stop_radius").as_double();
-            rend_set.bus_label_font_size_ = rend_map.at("bus_label_font_size").as_int();
-
-            if (rend_map.at("bus_label_offset").is_array()) {
-                bus_lab_offset = rend_map.at("bus_label_offset").as_array();
-                rend_set.bus_label_offset_ = std::make_pair(bus_lab_offset[0].as_double(),
-                                                            bus_lab_offset[1].as_double());
-            }
-
-            rend_set.stop_label_font_size_ = rend_map.at("stop_label_font_size").as_int();
-
-            if (rend_map.at("stop_label_offset").is_array()) {
-                stop_lab_offset = rend_map.at("stop_label_offset").as_array();
-                rend_set.stop_label_offset_ = std::make_pair(stop_lab_offset[0].as_double(),
-                                                             stop_lab_offset[1].as_double());
-            }
-
-            if (rend_map.at("underlayer_color").is_string()) {
-                rend_set.underlayer_color_ = svg::Color(rend_map.at("underlayer_color").as_string());
-            } else if (rend_map.at("underlayer_color").is_array()) {
-                arr_color = rend_map.at("underlayer_color").as_array();
-                red_ = arr_color[0].as_int();
-                green_ = arr_color[1].as_int();
-                blue_ = arr_color[2].as_int();
-
-                if(arr_color.size() == 4){
-                    opacity_ = arr_color[3].as_double();
-                    rend_set.underlayer_color_ = svg::Color(svg::Rgba(red_,
-                                                                      green_,
-                                                                      blue_,
-                                                                      opacity_));
-                } else if (arr_color.size() == 3) {
-                    rend_set.underlayer_color_ = svg::Color(svg::Rgb(red_, green_, blue_));
-                }
-            }
-
-            rend_set.underlayer_width_ = rend_map.at("underlayer_width").as_double();
-
-            if (rend_map.at("color_palette").is_array()) {
-                arr_palette = rend_map.at("color_palette").as_array();
-
-                for (Node color_palette : arr_palette) {
-                    if (color_palette.is_string()) {
-                        rend_set.color_palette_.push_back(svg::Color(color_palette.as_string()));
-                    } else if (color_palette.is_array()) {
-                        arr_color = color_palette.as_array();
-                        red_ = arr_color[0].as_int();
-                        green_ = arr_color[1].as_int();
-                        blue_ = arr_color[2].as_int();
-
-                        if (arr_color.size() == 4) {
-                            opacity_ = arr_color[3].as_double();
-                            rend_set.color_palette_.push_back(svg::Color(svg::Rgba(red_, green_, blue_, opacity_)));
-
-                        } else if (arr_color.size() == 3) {
-                            rend_set.color_palette_.push_back(svg::Color(svg::Rgb(red_,green_,blue_)));
-                        }
-                    }
-                }
-            }
-        } catch(...) {
-         //   std::cout << "unable to parsse init settings";
-        }
-
-    } else {
-      //  std::cout << "render_settings is not map";
-    }
-}
-
-void parse_node(const Node& root, TransportCatalogue& catalogue, [[maybe_unused]] std::vector<StatRequest>& stat_request, map_renderer::RenderSettings& render_settings){
-
-Dict root_dictionary;
-
-    if (root.is_map()) {
-        root_dictionary = root.as_map();
-
-        try {
-            parse_node_base(root_dictionary.at("base_requests"), catalogue);
-        } catch(...) {
-          //  std::cout << "base_requests is empty";
-        }
-
-        try {
-            parce_node_stat(root_dictionary.at("stat_requests"), stat_request);
-        } catch(...) {
-        //    std::cout << "stat_requests is empty";
-        }
-
-       try {
-            parce_node_render(root_dictionary.at("render_settings"), render_settings);
-        } catch(...) {
-          //  std::cout << "render_settings is empty";
-        }
-
-    } else {
-      //  std::cout << "root is not map";
-    }
-}
-
-void parse_node(const Node& root, TransportCatalogue& catalogue, [[maybe_unused]] std::vector<StatRequest>& stat_request){
-Dict root_dictionary;
-
-    if (root.is_map()) {
-        root_dictionary = root.as_map();
-
-        try {
-            parse_node_base(root_dictionary.at("base_requests"), catalogue);
-        } catch(...) {
-         //   std::cout << "base_requests is empty";
-        }
-
-        try {
-            parce_node_stat(root_dictionary.at("stat_requests"), stat_request);
-        } catch(...) {
-        //    std::cout << "stat_requests is empty";
-        }
+      answers_.push_back(answer);
     }
 
-    else {
-      //  std::cout << "root is not map";
+}
+
+struct AnswerPrinter{
+    void operator()(std::string str){
+        ou<<"  \""<<str<<"\"";
     }
-}
-
-void parse(Document& document, TransportCatalogue& catalogue, std::vector<StatRequest>& stat_request, map_renderer::RenderSettings& render_settings){
-    parse_node(document.get_root(),
-               catalogue,
-               stat_request,
-               render_settings);
-}
-
-void parse(Document& document, TransportCatalogue& catalogue, std::vector<StatRequest>& stat_request){
-    parse_node(document.get_root(),
-               catalogue,
-               stat_request
-               );
-}
-
-Node execute_make_node_stop(int id_request, StopQueryResult stop_info){
-    Dict result;
-    Array buses;
-    std::string str_not_found = "not found";
-
-    if (stop_info.not_found) {
-        result.emplace("request_id", Node(id_request));
-        result.emplace("error_message", Node(str_not_found));
-    } else {
-        result.emplace("request_id", Node(id_request));
-
-        for (std::string bus_name : stop_info.buses_name) {
-            buses.push_back(Node(bus_name));
+    void operator()(int num){
+        ou<<" "<<num;
+    }
+    void operator()(double num){
+        ou<<" "<<num;
+    }
+    void operator()(std::vector<std::string> vec){
+        ou<<"[ ";
+        bool first = true;
+        for(const std::string& str:vec){
+            (first)
+                    ? ou<<'\n'<<"       \""<<str<<"\""
+                    : ou<<", "<<'\n'<<"      \""<<str<<"\"";
+            first=false;
         }
-
-        result.emplace("buses", Node(buses));
+        ou<<" ]";
     }
 
-    return Node(result);
-}
+    std::ostream& ou;
+};
 
-Node execute_make_node_bus(int id_request, BusQueryResult bus_info){
-    Dict result;
-    std::string str_not_found = "not found";
 
-    if (bus_info.not_found) {
-        result.emplace("request_id", Node(id_request));
-        result.emplace("error_message", Node(str_not_found));
-    } else {
-        result.emplace("request_id", Node(id_request));
-        result.emplace("curvature", Node(bus_info.curvature));
-        result.emplace("route_length", Node(bus_info.route_length));
-        result.emplace("stop_count", Node(bus_info.stops_on_route));
-        result.emplace("unique_stop_count", Node(bus_info.unique_stops));
-    }
-
-    return Node(result);
-}
-
-Node execute_make_node_map(int id_request, std::string& out_svg){
-    Dict result;
-
-    std::string str_not_found = "not found";
-        result.emplace("request_id", Node(id_request));
-        result.emplace("map", Node(out_svg));
-
-    return Node(result);
-}
-
-Document execute_queries([[maybe_unused]] TransportCatalogue& catalogue, std::vector<StatRequest>& stat_requests, [[maybe_unused]]request_handler::RequestHandler& Rh){
-    std::vector<Node> result_request;
-
-    for (StatRequest req : stat_requests) {
-
-        if (req.type == "Stop") {
-            result_request.push_back(execute_make_node_stop(req.id, stop::query(catalogue, req.name)));
-        } else if (req.type == "Bus") {
-            result_request.push_back(execute_make_node_bus(req.id,bus::query(catalogue, req.name)));
-        } else if (req.type == "Map") {
-            std::ostringstream osrs;
-            Rh.render_map(osrs);
-            std::string str (osrs.str());
-            result_request.push_back(execute_make_node_map(req.id, str));
+void JSONr::PrintAnswer(){
+    CreateAnswer();
+    out<<"  ["<<'\n';
+    bool first = true;
+    for(const Answer& dict:answers_){
+        (first)
+                ? out<<"    {"<<std::endl
+                : out<<","<<'\n'<<"    {"<<std::endl;
+        bool first2 = true;
+        for(const auto& k:dict){
+            (first2)? out<<" " : out<<", "<<std::endl;
+            out<<" \""<<k.first<<"\": ";
+            std::visit(AnswerPrinter{out}, k.second);
+            first2 =false;
         }
+        out<<"    }";
+        first = false;
     }
-
-    return Document{Node(result_request)};
+    out<<'\n'<<"  ]"<<std::endl;
 }
+
+
+TransportCatalog& JSONr::GetTransportCataloge(){
+    return transport_catalogue_;
+}
+
+RenderSettings& JSONr::GetRenderSettings(){
+    return render_settings_;
+}
+
+/*
+void JSONr::CreateAnsvertoReq(){
+    out<<'['<<'\n';
+    size_t size_req = stat_reqs_.size();
+    for(const StatRequest& sr:stat_reqs_){
+        if(sr.type == "Bus"){
+            AnswertoRequestBus arb;
+            if(!transport_catalogue_.BusRoudeExist(sr.name)){
+                out<<"  {"<<'\n'<<R"(    "request_id": )"<<sr.id<<","<<'\n'
+                  << R"(    "error_message": )"<< R"("not found")"<<'\n'
+                  <<"  }"<<std::endl;
+            } else {
+            const BusRoute* br = transport_catalogue_.GetBusRoude(sr.name);
+                arb.curvature = br->curvature;
+                arb.request_id = sr.id;
+                arb.route_length = br->distance;
+                arb.stop_count = br->route.size()+1;
+                arb.unique_stop_count = br->unique_route_number;
+                answer_bus_.push_back(arb);
+                out<<arb;
+                  }
+        } else if(sr.type == "Stop"){
+            if(!transport_catalogue_.BusStopExist(sr.name)){
+                out<<"  {"<<'\n'<<R"(    "request_id": )"<<sr.id<<","<<'\n'
+                  << R"(    "error_message": )"<< R"("not found")"<<'\n'
+                  <<"  }"<<std::endl;
+            } else {
+
+            AnswertoRequestStop ars;
+            const BusStop* bs = transport_catalogue_.GetBusStop(sr.name);
+
+                ars.request_id = sr.id;
+                ars.buses_names = bs->buses_numbers;
+            out<<ars;
+        }
+        } else {
+            throw "no answer";
+        }
+        if(--size_req !=0){out<<", ";}
+
+    }
+    out<<']'<<std::endl;
+}
+
+std::ostream& operator<<(std::ostream& ou, AnswertoRequestBus& arb){
+    ou<<"  {"<<'\n';
+    ou<<R"(    "curvature": )"<<arb.curvature<<","<<'\n'
+     <<R"(    "request_id": )"<<arb.request_id<<","<<'\n'
+    <<R"(    "route_length": )" <<arb.route_length<<","<<'\n'
+    <<R"(    "stop_count": )"<<arb.stop_count<<","<<'\n'
+    <<R"(    "unique_stop_count": )"<<arb.unique_stop_count<<'\n';
+    ou<<"  }"<<std::endl;
+    return ou;
+}
+
+std::ostream& operator<<(std::ostream& ou, AnswertoRequestStop& ars){
+    ou<<"  {"<<'\n';
+        ou<<R"(    "buses": [)"<<'\n';
+        bool first = true;
+        for(const std::string& bus:ars.buses_names){
+            (first)? ou<<"    "<<bus : ou<<", "<<'\n'<<"    "<<bus;
+            first = false;
+        }
+        ou<<'\n'<<"],"<<'\n';
+        ou<<R"(    "request_id": )"<<ars.request_id<<'\n';
+    ou<<"  }"<<std::endl;
+    return ou;
+}
+*/
 
 }//end namespace json
 }//end namespace detail
 }//end namespace transport_catalogue
+/*
+ * Здесь можно разместить код наполнения транспортного справочника данными из JSON,
+ * а также код обработки запросов к базе и формирование массива ответов в формате JSON
+ */
