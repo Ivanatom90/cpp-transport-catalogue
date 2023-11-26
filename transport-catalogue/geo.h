@@ -1,9 +1,6 @@
 #pragma once
 
 #include <cmath>
-#include <svg.h>
-#include <numeric>
-#include <algorithm>
 
 namespace transport_catalogue {
 namespace detail {
@@ -13,7 +10,6 @@ const int EARTH_RADIUS = 6371000;
 const double PI = 3.1415926535;
 
 struct Coordinates {
-    Coordinates(double lat, double lon): latitude(lat), longitude(lon){}
     double latitude;
     double longitude;
 
@@ -25,11 +21,7 @@ struct Coordinates {
     }
 };
 
-double compute_distance(Coordinates start, Coordinates end);
-
-
-
-
+double Compute_distance(Coordinates start, Coordinates end);
 
 }//end namespace geo
 }//end namespace detail
