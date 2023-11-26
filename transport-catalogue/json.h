@@ -86,3 +86,10 @@ void print(const Document& document, std::ostream& output);
 }//end namespace json
 }//end namespace detail
 }//end namespace transport_catalogue
+/*
+ * Здесь можно разместить код наполнения транспортного справочника данными из JSON,
+ * а также код обработки запросов к базе и формирование массива ответов в формате JSON
+ */
+/*
+ * Место для вашей JSON-библиотеки
+ */
