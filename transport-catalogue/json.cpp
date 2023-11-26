@@ -445,3 +445,7 @@ void print(const Document& document, std::ostream& output) {
 }//end namespace json
 }//end namespace detail
 }//end namespace transport_catalogue
+
+/*
+ * Место для вашей JSON-библиотеки
+ */
