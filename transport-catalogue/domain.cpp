@@ -1,38 +1,24 @@
-#pragma once
-#include <iostream>
-#include "transport_catalogue.h"
-#include <algorithm>
-#include <vector>
+#include "domain.h"
 
+//using namespace std;
 namespace transport_catalogue {
-
-
-
-
+//using namespace std;
 namespace detail {
 namespace bus {
-
-
-
 
 }//end namespace bus
 
 namespace stop {
 
 
-
-
-
-}//end namespace stop
-
-
+}
 
 }//end namespace detail
 }//end namespace transport_catalogue
-
 /*
- * В этом файле вы можете разместить классы/структуры, которые являются частью предметной области (domain)
- * вашего приложения и не зависят от транспортного справочника. Например Автобусные маршруты и Остановки. 
+ * В этом файле вы можете разместить классы/структуры, которые являются частью предметной области
+ * (domain) вашего приложения и не зависят от транспортного справочника. Например Автобусные
+ * маршруты и Остановки.
  *
  * Их можно было бы разместить и в transport_catalogue.h, однако вынесение их в отдельный
  * заголовочный файл может оказаться полезным, когда дело дойдёт до визуализации карты маршрутов:
