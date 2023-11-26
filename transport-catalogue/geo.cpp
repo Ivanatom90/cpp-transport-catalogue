@@ -7,7 +7,7 @@ namespace transport_catalogue {
 namespace detail {
 namespace geo {
 
-double compute_distance(Coordinates start, Coordinates end) {
+double Compute_distance(Coordinates start, Coordinates end) {
     using namespace std;
     if (!(start == end)) {
         const double dr = PI / 180.;
