@@ -9,10 +9,18 @@
 #include <optional>
 #include <ostream>
 #include <variant>
-#include <geo.h>
+#include "geo.h"
 
 
 namespace svg {
+
+
+
+// Объявив в заголовочном файле константу со спецификатором inline,
+// мы сделаем так, что она будет одной на все единицы трансляции,
+// которые подключают этот заголовок.
+// В противном случае каждая единица трансляции будет использовать свою копию этой константы
+//inline const Color NoneColor{"none"};
 
 enum class StrokeLineCap {
     BUTT,
@@ -27,6 +35,8 @@ enum class StrokeLineJoin {
     MITER_CLIP,
     ROUND,
 };
+
+
 
 inline std::ostream& operator<<(std::ostream& out, StrokeLineCap slc){
     using namespace std::literals;
@@ -50,6 +60,8 @@ inline std::ostream& operator<<(std::ostream& out, StrokeLineJoin slj){
     return out;
 }
 
+
+
 struct Point {
     Point() = default;
     Point(double x, double y)
@@ -60,6 +72,10 @@ struct Point {
     double y = 0;
 };
 
+/*
+ * Вспомогательная структура, хранящая контекст для вывода SVG-документа с отступами.
+ * Хранит ссылку на поток вывода, текущее значение и шаг отступа при выводе элемента
+ */
 struct RenderContext {
     RenderContext(std::ostream& out)
         : out(out) {
@@ -86,6 +102,15 @@ struct RenderContext {
     int indent = 0;
 };
 
+/*
+ * Абстрактный базовый класс Object служит для унифицированного хранения
+ * конкретных тегов SVG-документа
+ * Реализует паттерн "Шаблонный метод" для вывода содержимого тега
+ */
+
+
+
+
 //-------------Color-------------------------------
 class Rgb{
   public:
@@ -109,8 +134,25 @@ class Rgba{
     double opacity_ = 1.0;
 };
 
+
 using Color = std::variant<std::monostate, std::string, Rgb, Rgba>;
 inline const Color NoneColor{"none"};
+/*
+struct ColorPrinter{
+  public:
+   // ColorPrinter() = default;
+   std::ostream& out;
+   void operator()( Rgb& rgb) const;
+   void operator()( Rgba& rgba) const;
+   void operator()( std::monostate) const;
+   void operator()( std::string& color) const;
+
+
+};
+
+std::ostream& operator<<(std::ostream& out, const Color& color);
+*/
+
 inline void PrintColor(std::ostream& out, Rgb& rgb);
 inline void PrintColor(std::ostream& out, Rgba& rgba);
 inline void PrintColor(std::ostream& out, std::monostate);
@@ -178,6 +220,8 @@ protected:
 private:
 
     Owner& AsOwner() {
+        // static_cast безопасно преобразует *this к Owner&,
+        // если класс Owner — наследник PathProps
         return static_cast<Owner&>(*this);
     }
 
@@ -187,6 +231,8 @@ private:
     std::optional<StrokeLineCap> SLC_;
     std::optional<StrokeLineJoin> SLJ_;
 };
+
+//std::ostream& RgbOut(Color col);
 
 class Object {
 public:
@@ -198,6 +244,10 @@ private:
     virtual void RenderObject(const RenderContext& context) const = 0;
 };
 
+/*
+ * Класс Circle моделирует элемент <circle> для отображения круга
+ * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/circle
+ */
 class Circle final : public Object, public PathProps<Circle> {
 public:
     Circle& SetCenter(Point center);
@@ -210,25 +260,53 @@ private:
     double radius_ = 1;
 };
 
+/*
+ * Класс Polyline моделирует элемент <polyline> для отображения ломаных линий
+ * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/polyline
+ */
 class Polyline final : public Object, public PathProps<Polyline> {
 public:
+    // Добавляет очередную вершину к ломаной линии
     Polyline& AddPoint(Point point);
+
+    /*
+     * Прочие методы и данные, необходимые для реализации элемента <polyline>
+     */
 private:
     void RenderObject(const RenderContext& context) const override;
     std::vector<Point> points_;
 };
 
+/*
+ * Класс Text моделирует элемент <text> для отображения текста
+ * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/text
+ */
 class Text final : public Object, public PathProps<Text>{
 public:
     Text() = default;
+    // Задаёт координаты опорной точки (атрибуты x и y)
     Text& SetPosition(Point pos);
+
+    // Задаёт смещение относительно опорной точки (атрибуты dx, dy)
     Text& SetOffset(Point offset);
+
+    // Задаёт размеры шрифта (атрибут font-size)
     Text& SetFontSize(uint32_t size);
+
+    // Задаёт название шрифта (атрибут font-family)
     Text& SetFontFamily(std::string font_family);
+
+    // Задаёт толщину шрифта (атрибут font-weight)
     Text& SetFontWeight(std::string font_weight);
+
+    // Задаёт текстовое содержимое объекта (отображается внутри тега text)
     Text& SetData(std::string data);
+
     void CreateText();
+
     void RenderObject(const RenderContext& context) const override;
+
+    // Прочие данные и методы, необходимые для реализации элемента <text>
 private:
     Point xy_ = {0,0};
     Point dxdy_= {0,0};
@@ -247,6 +325,7 @@ class ObjectContainer{
     void Add(Obj obj) {
         objects_.emplace_back(std::make_unique<Obj>(std::move(obj)));
     }
+
     virtual void AddPtr(std::unique_ptr<Object>&& obj) = 0;
 
 protected:
@@ -260,10 +339,27 @@ public:
 
 };
 
+
+
+
 class Document : public ObjectContainer{
 public:
+    /*
+     Метод Add добавляет в svg-документ любой объект-наследник svg::Object.
+     Пример использования:
+     Document doc;
+     doc.Add(Circle().SetCenter({20, 30}).SetRadius(15));
+    */
+    // void Add(???);
+
+    // Добавляет в svg-документ объект-наследник svg::Object
+
     void AddPtr(std::unique_ptr<Object>&& obj);
+
+    // Выводит в ostream svg-представление документа
     void Render(std::ostream& out) const;
+
+    // Прочие методы и данные, необходимые для реализации класса Document
 };
 
 
