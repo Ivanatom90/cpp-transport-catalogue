@@ -1,5 +1,5 @@
 #include "json_reader.h"
-
+#include <log_duration.h>
 
 namespace transport_catalogue {
 namespace detail {
@@ -152,7 +152,7 @@ void JSONr::ParseRenderSettings(const Node& BasicRegnode){
 }
 
 void JSONr::CreateTransportCataloge(){
-
+    LogDuration createtc("CreateTransportCataloge");
     for(const Stop_J& stop : stops_j_){
         BusStop bs;
         bs.stop_name = stop.name;
@@ -177,20 +177,15 @@ void JSONr::CreateTransportCataloge(){
 }
 
 
-
 void JSONr::CreateAnswer(){
+    LogDuration cre_ans("CreateAnswerTotal");
     Builder answer_build;
-    answer_build.StartArray();
+    Array array_data;
     for(const StatRequest& sr:stat_reqs_){
-        //Answer answer;
-
         Dict data;
         if(sr.type == "Bus"){
-
              if(transport_catalogue_.BusRoudeExist(sr.name)){
                 const BusRoute* br =transport_catalogue_.GetBusRoude(sr.name);
-
-
                 data["curvature"] = br->curvature;
                 data["request_id"] =sr.id;
                 data["route_length"] = int(br->distance);
@@ -199,37 +194,25 @@ void JSONr::CreateAnswer(){
                 (br->is_roundtrip)
                         ? data["stop_count"]=int(br->route.size())
                         : data["stop_count"]= ((int(br->route.size())*2)-1);
-
-                         answer_build.Value(data);
-
              } else {
                          data["request_id"] = sr.id;
                          data["error_message"] = "not found";
-
-                         answer_build.Value(data);
                 }
 
         } else if(sr.type == "Stop"){
-
-
                 data["request_id"] = sr.id;
                 if(transport_catalogue_.BusStopExist(sr.name)){
                 Array buses;
                 const BusStop* bs = transport_catalogue_.GetBusStop(sr.name);
-
                 for(const std::string& bus_number:bs->buses_numbers){
                     buses.push_back(bus_number);
-
                 }
                 data["buses"] = buses;
-                answer_build.Value(data);
             } else {
                   data["error_message"] = "not found";
-                  answer_build.Value(data);
-                //answer["error_message"] = "not found";
             }
         } else if(sr.type == "Map"){
-
+                LogDuration cre_ans_map("CreateAnswerMap");
                       data["request_id"] = sr.id;
                       std::string str = "";
                 for(const char ch:mapa_){
@@ -240,161 +223,20 @@ void JSONr::CreateAnswer(){
                 }
 
                 data["map"] = mapa_;
-                answer_build.Value(data);
-                //answer["map"] = str;
+
         }
         else {
             throw "no answer";
         }
+        array_data.push_back(data);
 
-      //answers_.push_back(answer);
     }
-    answer_build.EndArray();
+   answer_build.Value(array_data);
    Document doc(answer_build.Build());
    Print(doc, out);
 
 }
 
-
-
-
-
-
-/*
-void JSONr::CreateAnswer(){
-    Builder answer_build;
-    answer_build.StartArray();
-    for(const StatRequest& sr:stat_reqs_){
-        //Answer answer;
-
-
-        if(sr.type == "Bus"){
-
-             if(transport_catalogue_.BusRoudeExist(sr.name)){
-                const BusRoute* br =transport_catalogue_.GetBusRoude(sr.name);
-
-                answer_build.StartDict()
-                        .Key("curvature").Value(br->curvature)
-                        .Key("request_id").Value(sr.id)
-                        .Key("route_length").Value(int(br->distance))
-                        .Key("unique_stop_count").Value(br->unique_route_number);
-
-                (br->is_roundtrip)
-                        ? answer_build.Key("stop_count").Value(int(br->route.size()))
-                        : answer_build.Key("stop_count").Value((int(br->route.size())*2)-1);
-                answer_build.EndDict();
-
-
-
-             } else {
-
-                 answer_build.StartDict()
-                         .Key("request_id").Value(sr.id)
-                         .Key("error_message").Value("not found")
-                         .EndDict();
-                }
-
-        } else if(sr.type == "Stop"){
-
-            answer_build.StartDict()
-                    .Key("request_id").Value(sr.id);
-            //answer["request_id"] = sr.id;
-            if(transport_catalogue_.BusStopExist(sr.name)){
-                Array buses;
-                const BusStop* bs = transport_catalogue_.GetBusStop(sr.name);
-
-                for(const std::string& bus_number:bs->buses_numbers){
-                    buses.push_back(bus_number);
-
-                }
-                answer_build.Key("buses").Value(buses).EndDict();
-                //answer["buses"]=buses;
-            } else {
-                answer_build
-                        .Key("error_message").Value("not found").EndDict();
-                //answer["error_message"] = "not found";
-            }
-        } else if(sr.type == "Map"){
-              answer_build.StartDict()
-                      .Key("request_id").Value(sr.id);
-            //answer["request_id"] =sr.id;
-                std::string str = "";
-                for(const char ch:mapa_){
-                    if(ch == '"' || ch == '\\'){
-                        str += '\\';
-                    }
-                    str +=ch;
-                }
-
-                answer_build
-                        .Key("map").Value(mapa_).EndDict();
-                //answer["map"] = str;
-        }
-        else {
-            throw "no answer";
-        }
-
-      //answers_.push_back(answer);
-    }
-    answer_build.EndArray();
-   Document doc(answer_build.Build());
-   Print(doc, out);
-
-}
-
-
-
-
-
-
-struct AnswerPrinter{
-    void operator()(std::string str){
-        ou<<"  \""<<str<<"\"";
-    }
-    void operator()(int num){
-        ou<<" "<<num;
-    }
-    void operator()(double num){
-        ou<<" "<<num;
-    }
-    void operator()(std::vector<std::string> vec){
-        ou<<"[ ";
-        bool first = true;
-        for(const std::string& str:vec){
-            (first)
-                    ? ou<<'\n'<<"       \""<<str<<"\""
-                    : ou<<", "<<'\n'<<"      \""<<str<<"\"";
-            first=false;
-        }
-        ou<<" ]";
-    }
-
-    std::ostream& ou;
-};
-
-
-void JSONr::PrintAnswer(){
-    CreateAnswer();
-    out<<"  ["<<'\n';
-    bool first = true;
-    for(const Answer& dict:answers_){
-        (first)
-                ? out<<"    {"<<std::endl
-                : out<<","<<'\n'<<"    {"<<std::endl;
-        bool first2 = true;
-        for(const auto& k:dict){
-            (first2)? out<<" " : out<<", "<<std::endl;
-            out<<" \""<<k.first<<"\": ";
-            std::visit(AnswerPrinter{out}, k.second);
-            first2 =false;
-        }
-        out<<"    }";
-        first = false;
-    }
-    out<<'\n'<<"  ]"<<std::endl;
-}
-
-*/
 TransportCatalog& JSONr::GetTransportCataloge(){
     return transport_catalogue_;
 }
