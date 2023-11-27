@@ -8,6 +8,8 @@
 #include <map>
 #include <iostream>
 #include <ostream>
+#include "json_builder.h"
+
 
 namespace transport_catalogue {
 namespace detail {
@@ -75,7 +77,7 @@ public:
 
 
 private:
-    Document& document_;
+    json::Document& document_;
     TransportCatalog transport_catalogue_;
     std::vector<Bus_J> buses_j_;
     std::vector<Stop_J> stops_j_;
