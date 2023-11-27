@@ -3,8 +3,7 @@
 namespace map_renderer {
 
 
-MapRenderer::MapRenderer(RenderSettings&& render_settings, BusRoutes&& br) {
-    bus_routes_= std::move(br);
+MapRenderer::MapRenderer(RenderSettings&& render_settings, BusRoutes& br):bus_routes_(br) {
     render_settings_ = std::move(render_settings);
     sphere_projector_ = CreateSphereProjector();
     CreateBusStopsAll();
