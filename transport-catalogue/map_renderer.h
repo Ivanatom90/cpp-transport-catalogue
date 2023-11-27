@@ -74,7 +74,7 @@ using BusRoutes = std::vector<std::pair<std::string, std::vector<BusStopForMap>>
 
 class MapRenderer {
 public:
-    MapRenderer(RenderSettings&& render_settings, BusRoutes&& br);
+    MapRenderer(RenderSettings&& render_settings, BusRoutes& br);
 
 
 
@@ -85,7 +85,7 @@ public:
 
 private:
     RenderSettings render_settings_;
-    BusRoutes bus_routes_;
+    BusRoutes& bus_routes_;
     svg::Document document_map_;
     SphereProjector sphere_projector_;
     std::vector<BusStopForMap> bus_stops_all_;
