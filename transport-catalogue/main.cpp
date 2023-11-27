@@ -8,6 +8,8 @@
 #include <ostream>
 #include <sstream>
 
+#include "json_builder.h"
+
 
 
 using namespace std;
@@ -21,7 +23,7 @@ int main() {
     //std::ofstream picture("out.svg");
     //std::ofstream text("test_out.txt");
     //std::ifstream infile("in.txt");
-    Document doc = load(cin);
+    Document doc = Load(cin);
     JSONr readJSON(doc, cout);
     readJSON.ParseReq();
     readJSON.CreateTransportCataloge();    
@@ -30,15 +32,14 @@ int main() {
     request_handler::RequestHandler req_handler(tc);
     RenderSettings rs = std::move(readJSON.GetRenderSettings());
     BusRoutes& br = req_handler.GetBusesRoutes();
-    MapRenderer map_renderer(std::move(rs),std::move(br));
+    MapRenderer map_renderer(std::move(rs),br);
     //map_renderer.PrintDocument(text);
     //map_renderer.PrintDocument(picture);
     map_renderer.PrintDocument(oss);
     std::string mapa;
     mapa = oss.str();
     readJSON.SetMap(mapa);
-    readJSON.PrintAnswer();
-
+    readJSON.CreateAnswer();
 
 
     //readJSON.PrintAnswer();
