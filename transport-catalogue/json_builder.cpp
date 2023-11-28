@@ -149,29 +149,18 @@ KeyItemContext::KeyItemContext(Builder& bild): builder_(bild){}
 ArrayItemContext KeyItemContext::StartArray(){
     return builder_.StartArray();
 }
-ValItemContext KeyItemContext::Value(Node::Value val){
+DictItemContext KeyItemContext::Value(Node::Value val){
     return builder_.Value(val);
 }
 DictItemContext KeyItemContext::StartDict(){
     return builder_.StartDict();
 }
 
-//--------------------------------ValItemContext----------------------------
-ValItemContext::ValItemContext(Builder& bild): builder_(bild){}
-
-KeyItemContext ValItemContext::Key(std::string key){
-    return builder_.Key(key);
-}
-
-Builder& ValItemContext::EndDict(){
-    return builder_.EndDict();
-}
-
 //----------------------------ArrayItemContext----------------------------------
 
 ArrayItemContext::ArrayItemContext(Builder& bild): builder_(bild){}
 
-ValArItemContext ArrayItemContext::Value(Node::Value val){
+ArrayItemContext ArrayItemContext::Value(Node::Value val){
     return builder_.Value(val);
 }
 DictItemContext ArrayItemContext::StartDict(){
@@ -181,23 +170,6 @@ ArrayItemContext ArrayItemContext::StartArray(){
     return builder_.StartArray();
 }
 Builder& ArrayItemContext::EndArray(){
-    return builder_.EndArray();
-}
-
-//----------------------------------ValArItemContext--------------------------
-
-ValArItemContext::ValArItemContext(Builder& bild): builder_(bild){}
-
-ValArItemContext ValArItemContext::Value(Node::Value val){
-    return builder_.Value(val);
-}
-DictItemContext ValArItemContext::StartDict(){
-    return builder_.StartDict();
-}
-ArrayItemContext ValArItemContext::StartArray(){
-    return builder_.StartArray();
-}
-Builder& ValArItemContext::EndArray(){
     return builder_.EndArray();
 }
 
