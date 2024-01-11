@@ -78,6 +78,9 @@ BusStop* TransportCatalog::GetBusStop(const std::string& stop) const{
 
 int TransportCatalog::GetDistaseBetweenStops(std::string& stop1, std::string& stop2) const {
     std::pair<std::string, std::string> stops(stop1, stop2);
+    if(stop1 == stop2 && !distanse_stop_.count(stops)){
+        return 0;
+    }
     return distanse_stop_.at(stops);
 }
 
@@ -107,3 +110,13 @@ bool TransportCatalog::BusRoudeExist(const std::string& bus) const{
 const std::deque<BusRoute>& TransportCatalog::GetBusRouts() const{
     return buses_routes_;
 }
+
+void TransportCatalog::AddRouteSettings(RoutingSettings rs){
+    routing_settings_ = rs;
+}
+
+RoutingSettings TransportCatalog::GetRouteSettings() const{
+    return routing_settings_;
+}
+
+
