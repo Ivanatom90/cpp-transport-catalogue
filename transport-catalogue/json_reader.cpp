@@ -1,5 +1,4 @@
 #include "json_reader.h"
-#include <log_duration.h>
 
 namespace transport_catalogue {
 namespace detail {
@@ -14,8 +13,18 @@ void JSONr::ParseReq(){
             JSONr::ParseBasReq(main_node.at("base_requests"));
             JSONr::ParseRenderSettings(main_node.at("render_settings"));
             JSONr::ParseStatReq(main_node.at("stat_requests"));
+            JSONr::ParseRoutingSettings(main_node.at("routing_settings"));
     }
 }
+
+void JSONr::ParseRoutingSettings(const Node& BasicRegNode){
+    if(!BasicRegNode.IsDict()){
+       return;
+    }
+    const Dict& node_route_set = BasicRegNode.AsDict();
+    route_settings_ = {node_route_set.at("bus_wait_time").AsDouble(), node_route_set.at("bus_velocity").AsDouble()};
+}
+
 
 void JSONr::ParseBasReq(const Node& BasicRegNode){
 
@@ -93,7 +102,13 @@ void JSONr::ParseStatReq(const Node& BasicRegnode){
        for(const Node& node:BasicRegnode.AsArray()){
            try{
                const Dict& dict = node.AsDict();
-               if(dict.at("type").AsString() != "Map"){
+
+               if(dict.at("type").AsString() == "Route"){
+                                  sr.id = dict.at("id").AsInt();
+                                  sr.from = dict.at("from").AsString();
+                                  sr.to = dict.at("to").AsString();
+                                  sr.type = dict.at("type").AsString();
+               } else if(dict.at("type").AsString() != "Map"){
                    sr.id = dict.at("id").AsInt();
                    sr.name = dict.at("name").AsString();
                    sr.type = dict.at("type").AsString();
@@ -152,7 +167,6 @@ void JSONr::ParseRenderSettings(const Node& BasicRegnode){
 }
 
 void JSONr::CreateTransportCataloge(){
-    LogDuration createtc("CreateTransportCataloge");
     for(const Stop_J& stop : stops_j_){
         BusStop bs;
         bs.stop_name = stop.name;
@@ -174,18 +188,27 @@ void JSONr::CreateTransportCataloge(){
         transport_catalogue_.AddBusRoute(br);
 
     }
+    transport_catalogue_.AddRouteSettings(route_settings_);
+
 }
 
 
+
 void JSONr::CreateAnswer(){
-    LogDuration cre_ans("CreateAnswerTotal");
+    //LogDuration ldCA("Total time answer create ");
     Builder answer_build;
     Array array_data;
+    //answer_build.StartArray();
     for(const StatRequest& sr:stat_reqs_){
+        //Answer answer;
+
         Dict data;
         if(sr.type == "Bus"){
+           // LogDuration cre_ans_bus("CreateAnswerBus");
              if(transport_catalogue_.BusRoudeExist(sr.name)){
                 const BusRoute* br =transport_catalogue_.GetBusRoude(sr.name);
+
+
                 data["curvature"] = br->curvature;
                 data["request_id"] =sr.id;
                 data["route_length"] = int(br->distance);
@@ -194,25 +217,36 @@ void JSONr::CreateAnswer(){
                 (br->is_roundtrip)
                         ? data["stop_count"]=int(br->route.size())
                         : data["stop_count"]= ((int(br->route.size())*2)-1);
+
+                      //   answer_build.Value(data);
+
              } else {
                          data["request_id"] = sr.id;
                          data["error_message"] = "not found";
+
+                        // answer_build.Value(data);
                 }
 
         } else if(sr.type == "Stop"){
+               // LogDuration cre_ans_stop("CreateAnswerStop");
+
                 data["request_id"] = sr.id;
                 if(transport_catalogue_.BusStopExist(sr.name)){
                 Array buses;
                 const BusStop* bs = transport_catalogue_.GetBusStop(sr.name);
+
                 for(const std::string& bus_number:bs->buses_numbers){
                     buses.push_back(bus_number);
+
                 }
                 data["buses"] = buses;
+               // answer_build.Value(data);
             } else {
                   data["error_message"] = "not found";
+                 // answer_build.Value(data);
+                //answer["error_message"] = "not found";
             }
         } else if(sr.type == "Map"){
-                LogDuration cre_ans_map("CreateAnswerMap");
                       data["request_id"] = sr.id;
                       std::string str = "";
                 for(const char ch:mapa_){
@@ -223,7 +257,41 @@ void JSONr::CreateAnswer(){
                 }
 
                 data["map"] = mapa_;
+                //answer_build.Value(data);
 
+        } else if(sr.type == "Route"){
+            //LogDuration lg2("Answer Route");
+            data["request_id"] = sr.id;
+            //graph::Router<double> router(transport_router_->GetGraph());
+            auto router_info = router_ptr_->BuildRoute(transport_router_->GetRouterByStop(sr.from.value()).bus_wait_start, transport_router_->GetRouterByStop(sr.to.value()).bus_wait_start);
+                if(router_info){
+                   // LogDuration lgRouter("Edges ");
+                    Array stops;
+                    using transport_catalogue::detail::router::StopEdge;
+                    using transport_catalogue::detail::router::BusEdge;
+                    for(graph::EdgeId stopbus:router_info->edges){
+                        Dict dict_route;
+                        std::variant<StopEdge, BusEdge> edge = transport_router_->GetEdge(stopbus);
+                        if(std::holds_alternative<StopEdge>(edge)){
+                            StopEdge se = std::get<StopEdge>(edge);
+                            dict_route["type"] = std::string("Wait");
+                            dict_route["time"] = se.time;
+                            dict_route["stop_name"] = se.name;
+
+                        } else if(std::holds_alternative<BusEdge>(edge)){
+                            BusEdge be = std::get<BusEdge>(edge);
+                            dict_route["type"] = std::string("Bus");
+                            dict_route["bus"] = std::string(be.bus_name);
+                            dict_route["time"] = be.time;
+                            dict_route["span_count"] = int(be.span_count);
+                        }
+                        stops.push_back(dict_route);
+                    }
+                    data["items"] = stops;
+                    data["total_time"] = router_info->weight;
+            } else {
+                    data["error_message"] = std::string("not found");
+                }
         }
         else {
             throw "no answer";
@@ -238,6 +306,7 @@ void JSONr::CreateAnswer(){
 }
 
 TransportCatalog& JSONr::GetTransportCataloge(){
+    //LogDuration ld("GetTransportCatalogFromJSONr");
     return transport_catalogue_;
 }
 
@@ -246,6 +315,16 @@ RenderSettings& JSONr::GetRenderSettings(){
 }
 
 
+void JSONr::SetTransportRouter(std::unique_ptr<TransportRouter> tr){
+    transport_router_ = std::move(tr);
+    router_ptr_ = std::make_unique<graph::Router<double>>(transport_router_->GetGraph());
+}
+
+/*
+Array JSONr::CreateAnsRoute(Dict& dict){
+
+}
+*/
 }//end namespace json
 }//end namespace detail
 }//end namespace transport_catalogue
