@@ -25,6 +25,11 @@ struct StopDist{
 
  namespace transport_catalogue{
 
+ struct RoutingSettings{
+     double bus_wait_time,
+     bus_velocity;
+ };
+
  struct BusStop{
      BusStop() = default;
      std::string stop_name;
@@ -54,6 +59,7 @@ class TransportCatalog{
     //void AddDistBetweenStops(std::pair<std::string, std::string>& stop1_stop2, int dist);
     void AddDistBetweenStops(const std::string& stop1, const std::string& stop2, int dist);
     void AddBusNumberToStop(std::string& stop_name, std::string& bus_number);
+    void AddRouteSettings(RoutingSettings rs);
 
     BusStop* GetBusStop(const std::string& stop) const;
     BusRoute* GetBusRoude(const std::string& bus) const;
@@ -63,6 +69,8 @@ class TransportCatalog{
     int GetDistaseBetweenStops(std::string& stop1, std::string& stop2) const;
     const std::deque<BusStop>& GetBusStops() const;
     const std::deque<BusRoute>& GetBusRouts() const;
+    RoutingSettings GetRouteSettings() const;
+
 
         class Hash{
 
@@ -76,6 +84,7 @@ private:
     std::unordered_map<std::pair<std::string, std::string>, int, Hash> distanse_stop_;
     std::unordered_map<std::string, BusStop*> stops_;
     std::unordered_map<std::string, BusRoute*> routes_;
+    RoutingSettings routing_settings_;
 };
 // напишите решение с нуля
 // код сохраните в свой git-репозиторий
