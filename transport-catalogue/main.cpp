@@ -7,8 +7,11 @@
 #include <iostream>
 #include <ostream>
 #include <sstream>
+#include <memory>
 
 #include "json_builder.h"
+#include "transport_router.h"
+#include "log_duration.h"
 
 
 
@@ -16,11 +19,13 @@ using namespace std;
 using namespace transport_catalogue;
 using namespace transport_catalogue::detail;
 using namespace transport_catalogue::detail::json;
+using transport_catalogue::detail::router::TransportRouter;
 
 int main() {
 
     std::ostringstream oss;
     //std::ofstream picture("out.svg");
+    //std::ofstream out("out.txt");
     //std::ofstream text("test_out.txt");
     //std::ifstream infile("in.txt");
     Document doc = Load(cin);
@@ -38,21 +43,11 @@ int main() {
     map_renderer.PrintDocument(oss);
     std::string mapa;
     mapa = oss.str();
-    readJSON.SetMap(mapa);
+    readJSON.SetMap(mapa);   
+    readJSON.SetTransportRouter(std::unique_ptr<TransportRouter>(new TransportRouter(tc)));
     readJSON.CreateAnswer();
 
-
     //readJSON.PrintAnswer();
+    return 0;
 
-
-
-    /*
-     * Примерная структура программы:
-     *
-     * Считать JSON из stdin
-     * Построить на его основе JSON базу данных транспортного справочника
-     * Выполнить запросы к справочнику, находящиеся в массиве "stat_requests", построив JSON-массив
-     * с ответами.
-     * Вывести в stdout ответы в виде JSON
-     */
 }
