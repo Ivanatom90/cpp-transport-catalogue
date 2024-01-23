@@ -1,1 +1,69 @@
+syntax = "proto3";
 
+package serialize;
+
+
+message Bus {
+
+	string name = 1;
+	repeated string route = 2;
+	bool is_roudtrip = 3;
+	
+}
+
+message Stop{
+
+	double latitude = 1;
+	double longitude = 2;
+	string name = 3;
+	repeated string bus_stop_for_dist = 4;
+	repeated int32 dist_between_stops = 5;
+
+
+}
+
+message ColorProto{
+	string color =1;
+	int32 r = 2;
+	int32 g = 3;
+	int32 b = 4;
+	double a = 5;
+	int32 type = 6;
+}
+
+message RenderSettings{
+        double width = 1;
+        double height = 2;
+        double padding = 3;
+        double line_width = 4;
+        double underlayer_width = 5;
+        double stop_radius = 6;
+		
+        int32 bus_label_font_size = 7;
+        int32 stop_label_font_size = 8;
+		ColorProto underlayer_color = 9;
+		repeated ColorProto color_palette = 10;
+		
+		double bus_label_offset_1 = 11;
+		double bus_label_offset_2 = 12;
+		double stop_label_offset_1 = 13;
+		double stop_label_offset_2 = 14;
+		
+		
+		
+}
+
+message RoutingSettings{
+	int32 bus_wait_time =1;
+	int32 bus_velocity =2;
+}
+
+message TransportCatalog{
+	
+	repeated Bus routes = 1;
+	repeated Stop stops = 2;
+	string serialization_settings = 3;
+	RenderSettings render_settings = 4;
+	RoutingSettings routing_settings =5;
+
+}
