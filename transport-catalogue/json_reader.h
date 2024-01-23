@@ -11,8 +11,9 @@
 #include "json_builder.h"
 #include "transport_router.h"
 #include "graph.h"
+#include <transport_catalogue.pb.h>
 
-#include "log_duration.h"
+#include "serialization.h"
 
 
 namespace transport_catalogue {
@@ -52,7 +53,8 @@ struct Stop_J{
 };
 
 
-
+serialize::ColorProto MakeColorProto(const svg::Color& color);
+svg::Color BaseTosvgColor (const serialize::ColorProto& colorproto);
 
 
 class JSONr{
@@ -64,14 +66,22 @@ public:
 
 
     void ParseReq();
+    void ParseMakeBase();
+    void ParseProcessRequests();
     void ParseBasReq(const Node& BasicRegnode);
     void ParseRenderSettings(const Node& BasicRegnode);
     void ParseStatReq(const Node& BasicRegnode);
     void ParseRoutingSettings(const Node& BasicRegnode);
+    void ParseSrealizationSettings(const Node& BasicRegnode);
+    void DeSiarilization(std::string path);
     void CreateBusJ(const Node& bus);
     void CreateStopJ(const Node& stop);
 
     void CreateTransportCataloge();
+    void CreateTransportCatalogeFromBase();
+    void CreateRenderSettingsFromBase(const serialize::TransportCatalog& transcat);
+    void CreateSerealaze();
+    void CreateSerelazeRenenderSettings(serialize::TransportCatalog& tc);
 
     void CreateAnswer();
     Array CreateAnsRoute(Dict& dict);
@@ -100,6 +110,7 @@ private:
     std::vector<Answer> answers_;
     std::string mapa_;
     RenderSettings render_settings_;
+    std::string serialization_settings_;
 
     RoutingSettings route_settings_;
 
