@@ -11,10 +11,42 @@ void JSONr::ParseReq(){
     if (document_.GetRoot().IsDict()){
         main_node = document_.GetRoot().AsDict();
             JSONr::ParseBasReq(main_node.at("base_requests"));
-            JSONr::ParseRenderSettings(main_node.at("render_settings"));
-            JSONr::ParseStatReq(main_node.at("stat_requests"));
-            JSONr::ParseRoutingSettings(main_node.at("routing_settings"));
+            JSONr::ParseSrealizationSettings(main_node.at("serialization_settings"));
+         //   JSONr::ParseRenderSettings(main_node.at("render_settings"));
+         //   JSONr::ParseStatReq(main_node.at("stat_requests"));
+         //   JSONr::ParseRoutingSettings(main_node.at("routing_settings"));
     }
+}
+
+void JSONr::ParseMakeBase(){
+    Dict main_node;
+    if (document_.GetRoot().IsDict()){
+        main_node = document_.GetRoot().AsDict();
+            JSONr::ParseBasReq(main_node.at("base_requests"));
+            JSONr::ParseSrealizationSettings(main_node.at("serialization_settings"));
+            JSONr::ParseRenderSettings(main_node.at("render_settings"));
+            JSONr::ParseRoutingSettings(main_node.at("routing_settings"));
+
+    }
+}
+
+void JSONr::ParseProcessRequests(){
+    Dict main_node;
+    if (document_.GetRoot().IsDict()){
+        main_node = document_.GetRoot().AsDict();
+            JSONr::ParseSrealizationSettings(main_node.at("serialization_settings"));
+            JSONr::ParseStatReq(main_node.at("stat_requests"));
+    }
+}
+
+
+
+void JSONr::ParseSrealizationSettings(const Node& BasicRegNode){
+    if(!BasicRegNode.IsDict()){
+       return;
+    }
+    const Dict& node_route_set = BasicRegNode.AsDict();
+    serialization_settings_ = node_route_set.at("file").AsString();
 }
 
 void JSONr::ParseRoutingSettings(const Node& BasicRegNode){
@@ -166,6 +198,30 @@ void JSONr::ParseRenderSettings(const Node& BasicRegnode){
     }
 }
 
+void JSONr::CreateRenderSettingsFromBase(const serialize::TransportCatalog& transcat){
+    const serialize::RenderSettings& srs = transcat.render_settings();
+    RenderSettings& rs = render_settings_;
+    rs.width = srs.width();
+    rs.height = srs.height();
+    rs.padding = srs.padding();
+    rs.stop_radius = srs.stop_radius();
+    rs.line_width = srs.line_width();
+    rs.bus_label_font_size = srs.bus_label_font_size();
+    rs.bus_label_offset = {srs.bus_label_offset_1(), srs.bus_label_offset_2()};
+    rs.stop_label_offset = {srs.stop_label_offset_1(), srs.stop_label_offset_2()};
+    rs.underlayer_width = srs.underlayer_width();
+    rs.underlayer_color = BaseTosvgColor(srs.underlayer_color());
+    rs.stop_label_font_size = srs.stop_label_font_size();
+    int massive_size = srs.color_palette().size();
+    for(int i = 0; i<massive_size; i++){
+        rs.color_palette.push_back(BaseTosvgColor(srs.color_palette(i)));
+    }
+
+
+
+
+}
+
 void JSONr::CreateTransportCataloge(){
     for(const Stop_J& stop : stops_j_){
         BusStop bs;
@@ -192,6 +248,102 @@ void JSONr::CreateTransportCataloge(){
 
 }
 
+void JSONr::CreateTransportCatalogeFromBase(){
+    serialize::TransportCatalog transcat;
+    std::filesystem::path path(serialization_settings_);
+    std::ifstream file(path, std::ios::binary);
+    transcat.ParseFromIstream(&file);
+    int size_massive = transcat.stops_size();
+    for(int i=0; i<size_massive; i++){
+       Stop_J stop;
+       serialize::Stop stop_s= transcat.stops(i);
+       stop.name = stop_s.name();
+       stop.latitude = stop_s.latitude();
+       stop.longitude = stop_s.longitude();
+       int dist_size = stop_s.bus_stop_for_dist_size();
+       for(int i = 0; i<dist_size; i++){
+           stop.dist_to[stop_s.bus_stop_for_dist(i)] = stop_s.dist_between_stops(i);
+       }
+       stops_j_.emplace_back(stop);
+    }
+    size_massive = transcat.routes_size();
+    for(int i=0; i<size_massive; i++){
+        Bus_J bus;
+        serialize::Bus bus_s = transcat.routes(i);
+        bus.name = bus_s.name();
+        bus.is_roudtrip = bus_s.is_roudtrip();
+        int route_size = bus_s.route_size();
+        for(int i=0; i<route_size; i++){
+            bus.route.push_back(bus_s.route(i));
+        }
+        buses_j_.emplace_back(bus);
+    }
+    route_settings_.bus_velocity = transcat.routing_settings().bus_velocity();
+    route_settings_.bus_wait_time = transcat.routing_settings().bus_wait_time();
+    CreateTransportCataloge();
+    CreateRenderSettingsFromBase(transcat);
+}
+
+
+void JSONr::CreateSerealaze(){
+    serialize::TransportCatalog transcat;
+
+    int j = 0;
+    for(const Stop_J& stop : stops_j_){
+        serialize::Stop stop_s;
+        stop_s.set_name(stop.name);
+        stop_s.set_latitude(stop.latitude);
+        stop_s.set_longitude(stop.longitude);
+        int i=0;
+        for(const std::pair<std::string, int>& dist : stop.dist_to){
+           stop_s.add_bus_stop_for_dist(dist.first);
+           stop_s.add_dist_between_stops(dist.second);
+           i++;
+        }
+        transcat.mutable_stops()->Add(std::move(stop_s));
+    }
+
+    for(const Bus_J& bus: buses_j_){
+    serialize::Bus bus_ser;
+        bus_ser.set_name(bus.name);
+        bus_ser.set_is_roudtrip(bus.is_roudtrip);
+
+        for(const std::string& stop :bus.route){
+            bus_ser.add_route(stop);
+        }
+        transcat.mutable_routes()->Add(std::move(bus_ser));
+
+    }
+
+    transcat.mutable_routing_settings()->set_bus_velocity(route_settings_.bus_velocity);
+    transcat.mutable_routing_settings()->set_bus_wait_time(route_settings_.bus_wait_time);
+    CreateSerelazeRenenderSettings(transcat);
+    ser::Serialization(serialization_settings_, transcat);
+
+}
+
+
+
+void JSONr::CreateSerelazeRenenderSettings(serialize::TransportCatalog& tc){
+    const auto& tcm = tc.mutable_render_settings();
+    *tcm->mutable_underlayer_color() = MakeColorProto(render_settings_.underlayer_color);
+    tcm->set_width(render_settings_.width);
+    tcm->set_height(render_settings_.height);
+    tcm->set_bus_label_font_size(render_settings_.bus_label_font_size);
+    tcm->set_bus_label_offset_1(render_settings_.bus_label_offset.first);
+    tcm->set_bus_label_offset_2(render_settings_.bus_label_offset.second);
+    tcm->set_line_width(render_settings_.line_width);
+    tcm->set_padding(render_settings_.padding);
+    tcm->set_stop_label_font_size(render_settings_.stop_label_font_size);
+    tcm->set_stop_label_offset_1(render_settings_.stop_label_offset.first);
+    tcm->set_stop_label_offset_2(render_settings_.stop_label_offset.second);
+    tcm->set_stop_radius(render_settings_.stop_radius);
+    tcm->set_underlayer_width(render_settings_.underlayer_width);
+    for(svg::Color& col:render_settings_.color_palette){
+        tcm->mutable_color_palette()->Add(MakeColorProto(col));
+    }
+
+}
 
 
 void JSONr::CreateAnswer(){
@@ -318,6 +470,45 @@ RenderSettings& JSONr::GetRenderSettings(){
 void JSONr::SetTransportRouter(std::unique_ptr<TransportRouter> tr){
     transport_router_ = std::move(tr);
     router_ptr_ = std::make_unique<graph::Router<double>>(transport_router_->GetGraph());
+}
+
+serialize::ColorProto MakeColorProto(const svg::Color& color){
+    serialize::ColorProto color_result;
+    const auto col_in = color;
+
+    if (std::holds_alternative<std::string>(col_in)){
+        color_result.set_color(std::get<std::string>(col_in));
+        color_result.set_type(0); //0 - string, 1 -  rgb, 2 - rgba
+    } else if (std::holds_alternative<svg::Rgb>(col_in)){
+        color_result.set_type(1);
+        const svg::Rgb& rgb = std::get<svg::Rgb>(col_in);
+        color_result.set_r(rgb.red_);
+        color_result.set_g(rgb.green_);
+        color_result.set_b(rgb.blue_);
+    } else if (std::holds_alternative<svg::Rgba>(col_in)){
+        color_result.set_type(2);
+        const svg::Rgba& rgba = std::get<svg::Rgba>(col_in);
+        color_result.set_r(rgba.red_);
+        color_result.set_g(rgba.green_);
+        color_result.set_b(rgba.blue_);
+        color_result.set_a(rgba.opacity_);
+       }
+    return color_result;
+}
+
+svg::Color BaseTosvgColor (const serialize::ColorProto& colorproto){
+    int type = colorproto.type();
+    svg::Color color;
+    if(type ==0){
+        color = colorproto.color();
+    } else if(type == 1){
+        svg::Rgb rgb(colorproto.r(), colorproto.g(), colorproto.b());
+        color = rgb;
+    } else if(type == 2){
+        svg::Rgba rgba(colorproto.r(), colorproto.g(), colorproto.b(), colorproto.a());
+        color = rgba;
+    }
+    return color;
 }
 
 /*
